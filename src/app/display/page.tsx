@@ -2,26 +2,34 @@
 
 import { useRemoteState } from '@/hooks/use-remote-state';
 import { useEffect, useState, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { 
     Clock, 
     CheckCircle, 
     ArrowRightCircle, 
     MonitorCheck,
     Loader2,
-    WifiOff
+    WifiOff,
+    Monitor,
+    ChevronRight
 } from 'lucide-react';
 import { useUser, useAuth } from '@/firebase';
 import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
 import { cn } from '@/lib/utils';
 import { TOTAL_QUESTIONS } from '@/lib/types';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 
 function DisplayPanelContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const sessionId = searchParams.get('s');
   
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
+  
+  const [manualId, setManualId] = useState('');
 
   useEffect(() => {
     if (!isUserLoading && !user && auth) {
@@ -44,12 +52,50 @@ function DisplayPanelContent() {
     return () => clearInterval(interval);
   }, [state.timerEndAt, state.status]);
 
+  const handleManualConnect = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (manualId.trim()) {
+      router.push(`/display?s=${manualId.trim()}`);
+    }
+  };
+
   if (!sessionId) {
     return (
-      <div className="fixed inset-0 flex flex-col items-center justify-center space-y-6 bg-background p-12 text-center page-transition">
-        <WifiOff className="w-24 h-24 text-muted-foreground opacity-20" />
-        <h1 className="text-4xl font-black uppercase tracking-tight">No Active Session</h1>
-        <p className="text-xl text-muted-foreground max-w-md">Please use the connection link or scan the QR code from the control panel.</p>
+      <div className="fixed inset-0 flex flex-col items-center justify-center space-y-8 bg-background p-6 text-center page-transition">
+        <div className="relative">
+          <div className="absolute inset-0 bg-primary/20 blur-[80px] rounded-full scale-150 animate-pulse-slow" />
+          <Monitor className="w-24 h-24 text-primary relative z-10" />
+        </div>
+        
+        <div className="space-y-2 z-10">
+          <h1 className="text-4xl font-black uppercase tracking-tight">Display Panel</h1>
+          <p className="text-muted-foreground max-w-sm mx-auto font-medium">
+            Waiting for a session. Scan the QR code on the controller or enter the session ID manually below.
+          </p>
+        </div>
+
+        <Card className="w-full max-w-sm p-6 border-2 shadow-2xl rounded-[2rem] z-10">
+          <form onSubmit={handleManualConnect} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block text-left ml-1">
+                Manual Session ID
+              </label>
+              <Input 
+                placeholder="e.g. abc1234" 
+                value={manualId}
+                onChange={(e) => setManualId(e.target.value)}
+                className="h-14 text-lg font-black tracking-widest rounded-xl text-center uppercase border-2 focus:border-primary"
+              />
+            </div>
+            <Button type="submit" className="w-full h-14 rounded-xl font-black uppercase tracking-widest text-sm gap-2">
+              Connect Display <ChevronRight className="w-4 h-4" />
+            </Button>
+          </form>
+        </Card>
+
+        <p className="text-[10px] text-muted-foreground uppercase tracking-[0.3em] font-bold">
+          RemoteDisplayLink Protocol
+        </p>
       </div>
     );
   }
@@ -69,6 +115,9 @@ function DisplayPanelContent() {
           <WifiOff className="w-24 h-24 text-destructive opacity-40 animate-pulse" />
           <h1 className="text-4xl font-black uppercase text-destructive">Session Not Found</h1>
           <p className="text-xl text-muted-foreground">The ID <span className="font-mono bg-muted px-2 py-1 rounded">{sessionId}</span> is inactive or expired.</p>
+          <Button variant="outline" onClick={() => router.push('/display')} className="mt-4 rounded-xl border-2 font-black uppercase tracking-widest">
+            Try Another ID
+          </Button>
         </div>
       );
   }
