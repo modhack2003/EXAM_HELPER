@@ -1,18 +1,35 @@
+
 "use client";
 
 import { useRemoteState } from '@/hooks/use-remote-state';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { 
     Clock, 
     CheckCircle, 
     ArrowRightCircle, 
-    MonitorCheck 
+    MonitorCheck,
+    Loader2,
+    WifiOff
 } from 'lucide-react';
+import { useUser, useAuth } from '@/firebase';
+import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
 
-export default function DisplayPanel() {
-  const { state } = useRemoteState();
+function DisplayPanelContent() {
+  const searchParams = useSearchParams();
+  const sessionId = searchParams.get('s');
+  
+  const { user, isUserLoading } = useUser();
+  const auth = useAuth();
+
+  useEffect(() => {
+    if (!isUserLoading && !user && auth) {
+      initiateAnonymousSignIn(auth);
+    }
+  }, [user, isUserLoading, auth]);
+
+  const { state, isLoading, sessionExists } = useRemoteState(sessionId);
   const [localTimer, setLocalTimer] = useState<string>('01:30');
-  const [showFinished, setShowFinished] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -26,8 +43,33 @@ export default function DisplayPanel() {
     return () => clearInterval(interval);
   }, [state.timerEndAt, state.status]);
 
-  // Effect to hide selection after 10 seconds if needed or handled by controller
-  // The controller manages the transition to 'NEXT_PROMPT' or 'IDLE'
+  if (!sessionId) {
+    return (
+      <div className="h-screen w-screen flex flex-col items-center justify-center space-y-4 bg-background p-8 text-center">
+        <WifiOff className="w-16 h-16 text-muted-foreground" />
+        <h1 className="text-2xl font-bold">No Session ID</h1>
+        <p className="text-muted-foreground">Please scan the QR code or use the link provided by the controller.</p>
+      </div>
+    );
+  }
+
+  if (isLoading || isUserLoading) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-12 h-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!sessionExists) {
+      return (
+        <div className="h-screen w-screen flex flex-col items-center justify-center space-y-4 bg-background p-8 text-center">
+          <WifiOff className="w-16 h-16 text-destructive" />
+          <h1 className="text-2xl font-bold">Session Not Found</h1>
+          <p className="text-muted-foreground">The session ID "{sessionId}" does not exist or has expired.</p>
+        </div>
+      );
+  }
 
   const renderContent = () => {
     switch (state.status) {
@@ -109,8 +151,16 @@ export default function DisplayPanel() {
         </div>
         
         <div className="absolute bottom-8 left-0 right-0 flex justify-center opacity-20">
-            <p className="text-sm font-bold uppercase tracking-[0.5em]">RemoteDisplayLink System v1.0</p>
+            <p className="text-sm font-bold uppercase tracking-[0.5em]">Session ID: {sessionId}</p>
         </div>
     </main>
+  );
+}
+
+export default function DisplayPanel() {
+  return (
+    <Suspense fallback={<div className="h-screen w-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin" /></div>}>
+      <DisplayPanelContent />
+    </Suspense>
   );
 }

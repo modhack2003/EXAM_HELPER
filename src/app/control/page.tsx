@@ -1,11 +1,11 @@
+
 "use client";
 
 import { useRemoteState } from '@/hooks/use-remote-state';
 import { 
   TOTAL_QUESTIONS, 
   TIMER_DURATION_MS, 
-  AppState,
-  INITIAL_STATE 
+  NEXT_PROMPT_DURATION_MS
 } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -17,13 +17,52 @@ import {
   RefreshCcw,
   Clock,
   CheckCircle2,
-  XCircle
+  XCircle,
+  Share2,
+  Loader2
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useUser, useAuth } from '@/firebase';
+import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
+import { toast } from '@/hooks/use-toast';
 
-export default function ControlPanel() {
-  const { state, updateState, resetState } = useRemoteState();
+function ControlPanelContent() {
+  const searchParams = useSearchParams();
+  const sessionIdFromUrl = searchParams.get('s');
+  const [sessionId, setSessionId] = useState<string | null>(sessionIdFromUrl);
+  
+  const { user, isUserLoading } = useUser();
+  const auth = useAuth();
+
+  // Ensure user is signed in anonymously to interact with Firestore
+  useEffect(() => {
+    if (!isUserLoading && !user && auth) {
+      initiateAnonymousSignIn(auth);
+    }
+  }, [user, isUserLoading, auth]);
+
+  // Generate a random session ID if none exists
+  useEffect(() => {
+    if (!sessionId) {
+      const newId = Math.random().toString(36).substring(2, 9);
+      setSessionId(newId);
+      // Update URL without refresh to allow sharing
+      const url = new URL(window.location.href);
+      url.searchParams.set('s', newId);
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [sessionId]);
+
+  const { state, updateState, resetState, initializeSession, isLoading, sessionExists } = useRemoteState(sessionId);
   const [localTimer, setLocalTimer] = useState<string>('00:00');
+
+  // Initialize session in Firestore if it doesn't exist yet
+  useEffect(() => {
+    if (!isLoading && !sessionExists && sessionId && user) {
+      initializeSession();
+    }
+  }, [isLoading, sessionExists, sessionId, user, initializeSession]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -69,21 +108,37 @@ export default function ControlPanel() {
   };
 
   const moveToNextAvailable = () => {
-    updateState({ status: 'NEXT_PROMPT' });
+    updateState({ status: 'NEXT_PROMPT', timerEndAt: null });
+    
     setTimeout(() => {
         let nextIndex = (state.currentQuestionIndex + 1) % TOTAL_QUESTIONS;
-        // Logic to skip already answered questions if needed, 
-        // but prompt says iterate 125 times.
         updateState({
             currentQuestionIndex: nextIndex,
-            status: 'IDLE',
-            selectedOption: null,
-            timerEndAt: null
+            status: 'TIMER', // AUTO START TIMER per user request
+            timerEndAt: Date.now() + TIMER_DURATION_MS,
+            selectedOption: null
         });
-    }, 3000);
+    }, NEXT_PROMPT_DURATION_MS);
+  };
+
+  const copyShareLink = () => {
+    const displayUrl = `${window.location.origin}/display?s=${sessionId}`;
+    navigator.clipboard.writeText(displayUrl);
+    toast({
+      title: "Link Copied!",
+      description: "Open this link on the display device.",
+    });
   };
 
   const progress = ((state.answeredIndices.length + state.skippedIndices.length) / TOTAL_QUESTIONS) * 100;
+
+  if (isLoading || isUserLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-8 flex flex-col max-w-lg mx-auto space-y-6">
@@ -92,9 +147,14 @@ export default function ControlPanel() {
           <h1 className="text-xl font-bold text-primary font-headline">Controller</h1>
           <p className="text-xs text-muted-foreground uppercase tracking-widest">Question {state.currentQuestionIndex + 1} / {TOTAL_QUESTIONS}</p>
         </div>
-        <Button variant="ghost" size="icon" onClick={resetState} title="Reset All">
-          <RefreshCcw className="w-4 h-4" />
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="ghost" size="icon" onClick={copyShareLink} title="Share Display Link">
+            <Share2 className="w-4 h-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={resetState} title="Reset All">
+            <RefreshCcw className="w-4 h-4" />
+          </Button>
+        </div>
       </header>
 
       <div className="space-y-2">
@@ -164,8 +224,16 @@ export default function ControlPanel() {
       <div className="flex-1" />
       
       <p className="text-center text-[10px] text-muted-foreground italic">
-        Sync Active: Status {state.status} | {state.selectedOption ? `Selected: ${state.selectedOption}` : 'No Selection'}
+        Sync Active (Firestore): Status {state.status} | Session: {sessionId}
       </p>
     </div>
+  );
+}
+
+export default function ControlPanel() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>}>
+      <ControlPanelContent />
+    </Suspense>
   );
 }
