@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useCallback, useMemo } from 'react';
@@ -53,6 +52,8 @@ export function useRemoteState(sessionId: string | null) {
   const initializeSession = useCallback(() => {
     if (!sessionRef || !user) return;
     
+    // We use setDocumentNonBlocking with merge to ensure we create the session 
+    // if it's missing, but we don't overwrite if it was already created.
     const initialData = {
       ...INITIAL_STATE,
       controlPanelUid: user.uid,
@@ -72,5 +73,12 @@ export function useRemoteState(sessionId: string | null) {
     });
   }, [sessionRef]);
 
-  return { state, updateState, resetState, initializeSession, isLoading, sessionExists: !!sessionDoc };
+  return { 
+    state, 
+    updateState, 
+    resetState, 
+    initializeSession, 
+    isLoading, 
+    sessionExists: !!sessionDoc 
+  };
 }

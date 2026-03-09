@@ -39,7 +39,7 @@ import { toast } from '@/hooks/use-toast';
 import { QRCodeSVG } from 'qrcode.react';
 import { cn } from '@/lib/utils';
 
-function ConnectionCard({ displayUrl, copyShareLink }: { displayUrl: string, copyShareLink: () => void }) {
+function ConnectionCard({ displayUrl, copyShareLink, sessionId }: { displayUrl: string, copyShareLink: () => void, sessionId: string | null }) {
   return (
     <Card className="p-4 sm:p-6 border-2 border-primary/20 bg-primary/5 rounded-[2rem] space-y-4">
       <div className="flex items-center justify-between">
@@ -61,10 +61,10 @@ function ConnectionCard({ displayUrl, copyShareLink }: { displayUrl: string, cop
 
       <div className="flex gap-4 items-center">
         <div className="bg-white p-2 rounded-2xl shadow-sm border-2 border-primary/10 shrink-0">
-          {displayUrl ? (
+          {sessionId && displayUrl ? (
             <QRCodeSVG value={displayUrl} size={80} level="H" marginSize={1} className="sm:w-[100px] sm:h-[100px]" />
           ) : (
-            <div className="w-[80px] h-[80px] flex items-center justify-center">
+            <div className="w-[80px] h-[80px] sm:w-[100px] sm:h-[100px] flex items-center justify-center bg-muted/20 rounded-xl">
               <Loader2 className="w-5 h-5 animate-spin text-primary" />
             </div>
           )}
@@ -73,7 +73,7 @@ function ConnectionCard({ displayUrl, copyShareLink }: { displayUrl: string, cop
           <p className="text-[9px] font-bold text-muted-foreground uppercase leading-tight">
             Scan to sync audience screen
           </p>
-          <Button variant="default" size="sm" className="w-full h-9 text-[9px] font-black uppercase tracking-widest gap-2 rounded-xl" asChild>
+          <Button variant="default" size="sm" className="w-full h-9 text-[9px] font-black uppercase tracking-widest gap-2 rounded-xl" asChild disabled={!displayUrl}>
             <a href={displayUrl} target="_blank" rel="noopener noreferrer">
               <ExternalLink className="h-3 w-3" /> Preview
             </a>
@@ -110,6 +110,13 @@ function ControlPanelContent() {
 
   const { state, updateState, resetState, initializeSession, isLoading, sessionExists } = useRemoteState(sessionId);
   const [localTimer, setLocalTimer] = useState<string>('00:00');
+
+  // Automatically initialize session in Firestore if it doesn't exist
+  useEffect(() => {
+    if (sessionId && !sessionExists && !isLoading && user && !isUserLoading) {
+      initializeSession();
+    }
+  }, [sessionId, sessionExists, isLoading, user, isUserLoading, initializeSession]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -184,7 +191,7 @@ function ControlPanelContent() {
 
   const progress = ((state.answeredIndices.length + state.skippedIndices.length) / TOTAL_QUESTIONS) * 100;
 
-  if (isLoading || isUserLoading) {
+  if (isUserLoading || (sessionId && isLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-10 h-10 animate-spin text-primary" />
@@ -212,7 +219,7 @@ function ControlPanelContent() {
       </header>
 
       <main className="flex-1 overflow-y-auto px-6 py-6 space-y-6 sm:space-y-8">
-        <ConnectionCard displayUrl={displayUrl} copyShareLink={copyShareLink} />
+        <ConnectionCard displayUrl={displayUrl} copyShareLink={copyShareLink} sessionId={sessionId} />
 
         <section className="space-y-3">
           <div className="flex justify-between items-end">
