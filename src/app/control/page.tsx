@@ -42,43 +42,50 @@ import { cn } from '@/lib/utils';
 
 function ConnectDialogContent({ displayUrl, copyShareLink }: { displayUrl: string, copyShareLink: () => void }) {
   return (
-    <DialogContent className="w-[92vw] max-w-sm rounded-[2rem] p-0 overflow-hidden border-none shadow-2xl">
-      <div className="bg-primary px-6 py-8 text-center text-primary-foreground">
-        <div className="mx-auto bg-white/20 p-3 rounded-2xl w-fit mb-4">
+    <DialogContent className="sm:max-w-md border-none p-0 overflow-hidden rounded-[2.5rem] bg-white shadow-2xl">
+      <div className="bg-primary p-8 text-white text-center">
+        <div className="mx-auto bg-white/20 p-4 rounded-2xl w-fit mb-4">
           <Smartphone className="w-8 h-8" />
         </div>
         <DialogTitle className="text-2xl font-black uppercase tracking-tight mb-1">Connect Display</DialogTitle>
-        <DialogDescription className="text-primary-foreground/70 font-bold uppercase text-[10px] tracking-widest">
-          Sync another screen in seconds
-        </DialogDescription>
+        <p className="text-primary-foreground/80 font-bold uppercase text-[10px] tracking-widest">
+          Sync your audience screen
+        </p>
       </div>
       
-      <div className="p-8 flex flex-col items-center space-y-8 bg-background">
-        <div className="p-4 bg-white rounded-3xl shadow-lg border-2 border-primary/5">
-          {displayUrl && <QRCodeSVG value={displayUrl} size={200} level="H" marginSize={2} />}
+      <div className="p-8 flex flex-col items-center gap-8 bg-white">
+        <div className="p-4 bg-white rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.1)] border-2 border-primary/5">
+          {displayUrl ? (
+            <QRCodeSVG value={displayUrl} size={220} level="H" marginSize={2} />
+          ) : (
+            <div className="w-[220px] h-[220px] flex items-center justify-center">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          )}
         </div>
 
         <div className="w-full space-y-4">
           <div className="flex flex-col gap-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Session Link</label>
-            <div className="flex items-center gap-2 p-3 bg-muted rounded-xl border-2 border-transparent focus-within:border-primary/20 transition-all">
-              <span className="flex-1 truncate text-xs font-mono opacity-60 overflow-hidden whitespace-nowrap">
-                {displayUrl}
+            <label className="text-[10px] font-black uppercase tracking-widest text-primary/60 ml-1">Direct URL</label>
+            <div className="flex items-center gap-3 p-4 bg-muted rounded-2xl border-2 border-transparent focus-within:border-primary/20 transition-all">
+              <span className="flex-1 truncate text-xs font-bold text-foreground">
+                {displayUrl || "Generating..."}
               </span>
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="h-8 w-8 shrink-0 hover:bg-primary/10 hover:text-primary" 
+                className="h-10 w-10 shrink-0 hover:bg-primary/10 hover:text-primary rounded-xl" 
                 onClick={copyShareLink}
+                disabled={!displayUrl}
               >
-                <Copy className="h-4 h-4" />
+                <Copy className="h-4 w-4" />
               </Button>
             </div>
           </div>
 
-          <Button variant="default" className="w-full h-14 text-sm font-black gap-2 rounded-xl shadow-lg" asChild>
+          <Button variant="default" className="w-full h-16 text-sm font-black gap-3 rounded-2xl shadow-xl shadow-primary/10 transition-all" asChild disabled={!displayUrl}>
             <a href={displayUrl} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="h-4 w-4" /> Open Display Tab
+              <ExternalLink className="h-4 w-4" /> Open on this device
             </a>
           </Button>
         </div>
@@ -177,9 +184,10 @@ function ControlPanelContent() {
     }, NEXT_PROMPT_DURATION_MS);
   };
 
-  const displayUrl = typeof window !== 'undefined' ? `${window.location.origin}/display?s=${sessionId}` : '';
+  const displayUrl = (typeof window !== 'undefined' && sessionId) ? `${window.location.origin}/display?s=${sessionId}` : '';
 
   const copyShareLink = () => {
+    if (!displayUrl) return;
     navigator.clipboard.writeText(displayUrl);
     toast({
       title: "Link Copied!",
@@ -198,7 +206,7 @@ function ControlPanelContent() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto page-transition pb-safe">
+    <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto page-transition pb-safe overflow-x-hidden">
       {/* Fixed Header */}
       <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md px-6 py-4 flex items-center justify-between border-b">
         <div>
@@ -309,14 +317,14 @@ function ControlPanelContent() {
       {/* Footer Meta */}
       <footer className="px-6 py-6 border-t bg-muted/20">
         <div className="flex flex-col items-center gap-3">
-          <div className="flex items-center gap-2 text-[9px] font-black text-muted-foreground uppercase tracking-[0.3em]">
+          <div className="flex items-center gap-2 text-[9px] font-black text-primary uppercase tracking-[0.3em] bg-primary/10 px-3 py-1 rounded-full">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-            LIVE: {sessionId}
+            Session: {sessionId}
           </div>
           <Dialog>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="h-10 px-6 rounded-full text-[10px] uppercase font-black tracking-widest border-2 bg-white shadow-sm">
-                <QrCode className="w-3.5 h-3.5 mr-2" /> Connect Display
+              <Button variant="outline" size="sm" className="h-12 px-8 rounded-2xl text-xs uppercase font-black tracking-widest border-2 bg-white shadow-lg text-primary border-primary/20 hover:bg-primary/5">
+                <QrCode className="w-4 h-4 mr-2" /> Show QR Code
               </Button>
             </DialogTrigger>
             <ConnectDialogContent displayUrl={displayUrl} copyShareLink={copyShareLink} />
