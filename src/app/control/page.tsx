@@ -29,8 +29,7 @@ import {
   Copy,
   ExternalLink,
   QrCode,
-  Smartphone,
-  Info
+  Smartphone
 } from 'lucide-react';
 import { useEffect, useState, Suspense, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -42,13 +41,13 @@ import { cn } from '@/lib/utils';
 
 function ConnectionCard({ displayUrl, copyShareLink }: { displayUrl: string, copyShareLink: () => void }) {
   return (
-    <Card className="p-6 border-2 border-primary/20 bg-primary/5 rounded-[2rem] space-y-4">
+    <Card className="p-4 sm:p-6 border-2 border-primary/20 bg-primary/5 rounded-[2rem] space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="p-2 bg-primary rounded-xl">
             <QrCode className="w-4 h-4 text-white" />
           </div>
-          <h2 className="text-sm font-black uppercase tracking-tight text-primary">Connect Display</h2>
+          <h2 className="text-[10px] sm:text-xs font-black uppercase tracking-tight text-primary">Connect Display</h2>
         </div>
         <Button 
           variant="ghost" 
@@ -63,20 +62,20 @@ function ConnectionCard({ displayUrl, copyShareLink }: { displayUrl: string, cop
       <div className="flex gap-4 items-center">
         <div className="bg-white p-2 rounded-2xl shadow-sm border-2 border-primary/10 shrink-0">
           {displayUrl ? (
-            <QRCodeSVG value={displayUrl} size={100} level="H" marginSize={1} />
+            <QRCodeSVG value={displayUrl} size={80} level="H" marginSize={1} className="sm:w-[100px] sm:h-[100px]" />
           ) : (
-            <div className="w-[100px] h-[100px] flex items-center justify-center">
+            <div className="w-[80px] h-[80px] flex items-center justify-center">
               <Loader2 className="w-5 h-5 animate-spin text-primary" />
             </div>
           )}
         </div>
-        <div className="flex-1 space-y-3">
-          <p className="text-[10px] font-bold text-muted-foreground uppercase leading-tight">
-            Scan this with your audience screen device to sync
+        <div className="flex-1 space-y-2">
+          <p className="text-[9px] font-bold text-muted-foreground uppercase leading-tight">
+            Scan to sync audience screen
           </p>
-          <Button variant="default" size="sm" className="w-full h-10 text-[10px] font-black uppercase tracking-widest gap-2 rounded-xl" asChild>
+          <Button variant="default" size="sm" className="w-full h-9 text-[9px] font-black uppercase tracking-widest gap-2 rounded-xl" asChild>
             <a href={displayUrl} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="h-3 w-3" /> Preview Panel
+              <ExternalLink className="h-3 w-3" /> Preview
             </a>
           </Button>
         </div>
@@ -111,12 +110,6 @@ function ControlPanelContent() {
 
   const { state, updateState, resetState, initializeSession, isLoading, sessionExists } = useRemoteState(sessionId);
   const [localTimer, setLocalTimer] = useState<string>('00:00');
-
-  useEffect(() => {
-    if (!isLoading && !sessionExists && sessionId && user) {
-      initializeSession();
-    }
-  }, [isLoading, sessionExists, sessionId, user, initializeSession]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -201,7 +194,6 @@ function ControlPanelContent() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto page-transition pb-safe overflow-x-hidden">
-      {/* Fixed Header */}
       <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md px-6 py-4 flex items-center justify-between border-b">
         <div>
           <h1 className="text-lg font-black text-primary flex items-center gap-2">
@@ -219,12 +211,9 @@ function ControlPanelContent() {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto px-6 py-6 space-y-8">
-        {/* Connection Setup (High Visibility) */}
+      <main className="flex-1 overflow-y-auto px-6 py-6 space-y-6 sm:space-y-8">
         <ConnectionCard displayUrl={displayUrl} copyShareLink={copyShareLink} />
 
-        {/* Progress Section */}
         <section className="space-y-3">
           <div className="flex justify-between items-end">
             <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Progress</span>
@@ -243,38 +232,36 @@ function ControlPanelContent() {
           </div>
         </section>
 
-        {/* Timer Control */}
-        <Card className="p-8 flex flex-col items-center justify-center space-y-5 shadow-xl border-2 rounded-[2.5rem] overflow-hidden relative group transition-all active:scale-[0.98]">
+        <Card className="p-6 sm:p-8 flex flex-col items-center justify-center space-y-4 sm:space-y-5 shadow-xl border-2 rounded-[2.5rem] overflow-hidden relative group transition-all active:scale-[0.98]">
           <div className={cn(
             "absolute inset-0 bg-primary/5 transition-opacity",
             state.status === 'TIMER' ? 'opacity-100' : 'opacity-0'
           )} />
-          <div className="bg-primary/10 p-5 rounded-3xl relative z-10">
+          <div className="bg-primary/10 p-4 sm:p-5 rounded-3xl relative z-10">
               <Clock className={cn(
-                "w-12 h-12 text-primary transition-all",
+                "w-10 h-10 sm:w-12 sm:h-12 text-primary transition-all",
                 state.status === 'TIMER' ? 'animate-pulse scale-110' : ''
               )} />
           </div>
-          <div className="text-6xl font-mono font-black tracking-tighter text-foreground relative z-10 tabular-nums">
+          <div className="text-5xl sm:text-6xl font-mono font-black tracking-tighter text-foreground relative z-10 tabular-nums">
             {state.status === 'TIMER' ? localTimer : '01:30'}
           </div>
           <Button 
             onClick={handleStartTimer} 
-            className="w-full h-16 text-lg font-black gap-2 rounded-2xl relative z-10 shadow-lg active:scale-95 transition-all"
+            className="w-full h-14 sm:h-16 text-lg font-black gap-2 rounded-2xl relative z-10 shadow-lg active:scale-95 transition-all"
             disabled={state.status === 'TIMER' || state.status === 'NEXT_PROMPT'}
           >
             {state.status === 'TIMER' ? 'Active...' : <><Play className="fill-current w-5 h-5" /> Start Timer</>}
           </Button>
         </Card>
 
-        {/* Option Selection Grid */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4">
           {(['A', 'B', 'C', 'D'] as const).map((opt) => (
             <Button
               key={opt}
               onClick={() => handleSelectOption(opt)}
               className={cn(
-                "h-24 text-4xl font-black rounded-3xl shadow-lg transition-all active:scale-90",
+                "h-20 sm:h-24 text-3xl sm:text-4xl font-black rounded-3xl shadow-lg transition-all active:scale-90",
                 `option-${opt.toLowerCase()}`,
                 state.selectedOption === opt ? "ring-[6px] ring-primary ring-offset-4" : "opacity-95"
               )}
@@ -285,12 +272,11 @@ function ControlPanelContent() {
           ))}
         </div>
 
-        {/* Secondary Controls */}
-        <div className="grid grid-cols-2 gap-4 pt-2">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 pt-2">
           <Button 
             variant="outline" 
             onClick={handleSkip} 
-            className="h-16 text-sm font-black uppercase tracking-widest gap-2 border-2 rounded-2xl active:scale-95 transition-all"
+            className="h-14 sm:h-16 text-xs sm:text-sm font-black uppercase tracking-widest gap-2 border-2 rounded-2xl active:scale-95 transition-all"
             disabled={state.status === 'NEXT_PROMPT'}
           >
             <SkipForward className="w-4 h-4" /> Skip
@@ -298,7 +284,7 @@ function ControlPanelContent() {
           <Button 
             variant="default" 
             onClick={moveToNextAvailable} 
-            className="h-16 text-sm font-black uppercase tracking-widest bg-accent hover:bg-accent/90 gap-2 shadow-lg rounded-2xl active:scale-95 transition-all"
+            className="h-14 sm:h-16 text-xs sm:text-sm font-black uppercase tracking-widest bg-accent hover:bg-accent/90 gap-2 shadow-lg rounded-2xl active:scale-95 transition-all"
             disabled={state.status === 'NEXT_PROMPT'}
           >
             Next <ChevronRight className="w-5 h-5" />
@@ -306,14 +292,13 @@ function ControlPanelContent() {
         </div>
       </main>
 
-      {/* Footer Meta */}
       <footer className="px-6 py-8 border-t bg-muted/20 flex flex-col items-center gap-4">
         <div className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-[0.2em] bg-white border px-4 py-2 rounded-full shadow-sm">
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
           ID: {sessionId}
         </div>
         <p className="text-[9px] text-muted-foreground uppercase tracking-widest text-center font-bold px-6 leading-relaxed">
-          Open the Preview Panel on a separate screen for your audience to see real-time updates.
+          Sync with your audience screen for real-time updates.
         </p>
       </footer>
     </div>
