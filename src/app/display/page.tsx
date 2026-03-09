@@ -14,6 +14,7 @@ import {
 import { useUser, useAuth } from '@/firebase';
 import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
 import { cn } from '@/lib/utils';
+import { TOTAL_QUESTIONS } from '@/lib/types';
 
 function DisplayPanelContent() {
   const searchParams = useSearchParams();
