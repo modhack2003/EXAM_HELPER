@@ -20,6 +20,7 @@ import {
   Play, 
   SkipForward, 
   ChevronRight, 
+  ChevronLeft,
   RefreshCcw,
   Clock,
   CheckCircle,
@@ -29,10 +30,11 @@ import {
   Copy,
   ExternalLink,
   QrCode,
-  Smartphone
+  Smartphone,
+  Home
 } from 'lucide-react';
 import { useEffect, useState, Suspense, useMemo } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useUser, useAuth } from '@/firebase';
 import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
 import { toast } from '@/hooks/use-toast';
@@ -86,6 +88,7 @@ function ConnectionCard({ displayUrl, copyShareLink, sessionId }: { displayUrl: 
 
 function ControlPanelContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const sessionIdFromUrl = searchParams.get('s');
   const [sessionId, setSessionId] = useState<string | null>(sessionIdFromUrl);
   
@@ -111,7 +114,6 @@ function ControlPanelContent() {
   const { state, updateState, resetState, initializeSession, isLoading, sessionExists } = useRemoteState(sessionId);
   const [localTimer, setLocalTimer] = useState<string>('00:00');
 
-  // Automatically initialize session in Firestore if it doesn't exist
   useEffect(() => {
     if (sessionId && !sessionExists && !isLoading && user && !isUserLoading) {
       initializeSession();
@@ -161,6 +163,17 @@ function ControlPanelContent() {
     moveToNextAvailable();
   };
 
+  const handlePrevious = () => {
+    if (state.currentQuestionIndex > 0) {
+      updateState({
+        currentQuestionIndex: state.currentQuestionIndex - 1,
+        status: 'IDLE',
+        timerEndAt: null,
+        selectedOption: null
+      });
+    }
+  };
+
   const moveToNextAvailable = () => {
     updateState({ status: 'NEXT_PROMPT', timerEndAt: null });
     
@@ -173,6 +186,11 @@ function ControlPanelContent() {
             selectedOption: null
         });
     }, NEXT_PROMPT_DURATION_MS);
+  };
+
+  const handleExit = () => {
+    updateState({ status: 'FINISHED' });
+    router.push('/');
   };
 
   const displayUrl = useMemo(() => {
@@ -202,11 +220,16 @@ function ControlPanelContent() {
   return (
     <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto page-transition pb-safe overflow-x-hidden">
       <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md px-6 py-4 flex items-center justify-between border-b">
-        <div>
-          <h1 className="text-lg font-black text-primary flex items-center gap-2">
-            <Smartphone className="w-4 h-4" /> Remote
-          </h1>
-          <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Q{state.currentQuestionIndex + 1} of {TOTAL_QUESTIONS}</p>
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-muted" onClick={handleExit}>
+            <Home className="w-5 h-5 text-muted-foreground" />
+          </Button>
+          <div>
+            <h1 className="text-sm font-black text-primary flex items-center gap-2">
+              <Smartphone className="w-3 h-3" /> Remote
+            </h1>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold leading-none">Q{state.currentQuestionIndex + 1} of {TOTAL_QUESTIONS}</p>
+          </div>
         </div>
         <div className="flex gap-2">
           <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-primary/5 text-primary" onClick={copyShareLink}>
@@ -279,11 +302,19 @@ function ControlPanelContent() {
           ))}
         </div>
 
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 pt-2">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-2">
+          <Button 
+            variant="outline" 
+            onClick={handlePrevious} 
+            className="h-14 text-[10px] font-black uppercase tracking-tight gap-1 border-2 rounded-2xl active:scale-95 transition-all"
+            disabled={state.currentQuestionIndex === 0 || state.status === 'NEXT_PROMPT'}
+          >
+            <ChevronLeft className="w-4 h-4" /> Back
+          </Button>
           <Button 
             variant="outline" 
             onClick={handleSkip} 
-            className="h-14 sm:h-16 text-xs sm:text-sm font-black uppercase tracking-widest gap-2 border-2 rounded-2xl active:scale-95 transition-all"
+            className="h-14 text-[10px] font-black uppercase tracking-tight gap-1 border-2 rounded-2xl active:scale-95 transition-all"
             disabled={state.status === 'NEXT_PROMPT'}
           >
             <SkipForward className="w-4 h-4" /> Skip
@@ -291,10 +322,10 @@ function ControlPanelContent() {
           <Button 
             variant="default" 
             onClick={moveToNextAvailable} 
-            className="h-14 sm:h-16 text-xs sm:text-sm font-black uppercase tracking-widest bg-accent hover:bg-accent/90 gap-2 shadow-lg rounded-2xl active:scale-95 transition-all"
+            className="h-14 text-[10px] font-black uppercase tracking-tight bg-accent hover:bg-accent/90 gap-1 shadow-lg rounded-2xl active:scale-95 transition-all"
             disabled={state.status === 'NEXT_PROMPT'}
           >
-            Next <ChevronRight className="w-5 h-5" />
+            Next <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
       </main>

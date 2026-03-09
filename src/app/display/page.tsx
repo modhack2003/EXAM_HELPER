@@ -40,6 +40,13 @@ function DisplayPanelContent() {
   const { state, isLoading, sessionExists } = useRemoteState(sessionId);
   const [localTimer, setLocalTimer] = useState<string>('01:30');
 
+  // Sync redirect when session is finished
+  useEffect(() => {
+    if (state.status === 'FINISHED') {
+      router.push('/');
+    }
+  }, [state.status, router]);
+
   useEffect(() => {
     const interval = setInterval(() => {
       if (state.timerEndAt && state.status === 'TIMER') {
