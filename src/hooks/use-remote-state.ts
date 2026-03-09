@@ -14,7 +14,7 @@ import {
 import { AppState, INITIAL_STATE, SessionState } from '@/lib/types';
 
 export function useRemoteState(sessionId: string | null) {
-  const { firestore } = useFirestore();
+  const firestore = useFirestore();
   const { user } = useUser();
 
   const sessionRef = useMemoFirebase(() => {

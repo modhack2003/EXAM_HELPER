@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRemoteState } from '@/hooks/use-remote-state';
@@ -23,8 +24,8 @@ import {
   ChevronRight, 
   RefreshCcw,
   Clock,
-  CheckCircle2,
-  XCircle,
+  CheckCircle,
+  CircleX,
   Share2,
   Loader2,
   Copy,
@@ -125,7 +126,7 @@ function ControlPanelContent() {
         let nextIndex = (state.currentQuestionIndex + 1) % TOTAL_QUESTIONS;
         updateState({
             currentQuestionIndex: nextIndex,
-            status: 'TIMER', // AUTO START TIMER per user request
+            status: 'TIMER', 
             timerEndAt: Date.now() + TIMER_DURATION_MS,
             selectedOption: null
         });
@@ -214,10 +215,10 @@ function ControlPanelContent() {
         <Progress value={progress} className="h-2" />
         <div className="flex justify-between pt-1">
             <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                <CheckCircle2 className="w-3 h-3 text-green-500" /> {state.answeredIndices.length} Answered
+                <CheckCircle className="w-3 h-3 text-green-500" /> {state.answeredIndices.length} Answered
             </div>
             <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                <XCircle className="w-3 h-3 text-orange-400" /> {state.skippedIndices.length} Skipped
+                <CircleX className="w-3 h-3 text-orange-400" /> {state.skippedIndices.length} Skipped
             </div>
         </div>
       </div>
