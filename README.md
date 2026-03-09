@@ -12,11 +12,13 @@ This app is a real-time, dual-device synchronization tool built with Next.js and
 
 To make the app functional in production, you **must** configure your Firebase project:
 
-### 1. Enable Authentication
+### 1. Enable Anonymous Authentication
 - Go to the [Firebase Console](https://console.firebase.google.com/).
 - Navigate to **Build > Authentication**.
 - Click the **Sign-in method** tab.
-- Enable **Anonymous** (required for the real-time sync between devices).
+- Click **Add new provider** and select **Anonymous**.
+- Toggle the **Enable** switch to **On** and click **Save**.
+- *Why?* This allows devices to sync securely without requiring a user to type a password.
 
 ### 2. Provision Firestore
 - Navigate to **Build > Firestore Database**.
