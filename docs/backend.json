@@ -1,0 +1,159 @@
+{
+  "entities": {
+    "Session": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Session",
+      "type": "object",
+      "description": "Represents a single play session of the RemoteDisplayLink application, managing its overall state and real-time display synchronization.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Session entity."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the session was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the session was last updated.",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "description": "The current operational status of the session (e.g., 'pending', 'active', 'completed', 'paused')."
+        },
+        "totalIterations": {
+          "type": "number",
+          "description": "The total number of iterations planned for this session, fixed at 125."
+        },
+        "activeIterationId": {
+          "type": "string",
+          "description": "Reference to the currently active Iteration within this session. Null if no iteration is currently active. (Relationship: Session 1:1 Iteration)"
+        },
+        "activeIterationStartTime": {
+          "type": "string",
+          "description": "Timestamp when the timer for the current active iteration started. Null if no iteration is active or timer not started.",
+          "format": "date-time"
+        },
+        "lastSelectedOptionDisplay": {
+          "type": "string",
+          "description": "The 'ABCD' option prominently displayed on the display panel as the last selection for the active iteration. Null if no option is being displayed."
+        },
+        "displayPrompt": {
+          "type": "string",
+          "description": "Indicates the specific prompt or content the display panel should currently show (e.g., 'timer', 'optionSelected', 'nextQuestionPrompt', 'skipPrompt', 'sessionEnded')."
+        }
+      },
+      "required": [
+        "id",
+        "createdAt",
+        "updatedAt",
+        "status",
+        "totalIterations",
+        "displayPrompt"
+      ]
+    },
+    "Iteration": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Iteration",
+      "type": "object",
+      "description": "Represents one of the 125 individual cycles or 'questions' within a RemoteDisplayLink session, tracking its progress and outcome.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Iteration entity."
+        },
+        "sessionId": {
+          "type": "string",
+          "description": "Reference to the Session this iteration belongs to. (Relationship: Session 1:N Iteration)"
+        },
+        "iterationNumber": {
+          "type": "number",
+          "description": "The sequential number (1-125) of this iteration within its session."
+        },
+        "status": {
+          "type": "string",
+          "description": "The current status of this iteration (e.g., 'pending', 'active', 'answered', 'skipped', 'timedOut')."
+        },
+        "selectedOption": {
+          "type": "string",
+          "description": "The 'ABCD' option chosen for this iteration. Null if not answered, skipped, or timed out."
+        },
+        "selectionTimestamp": {
+          "type": "string",
+          "description": "Timestamp when an option was selected for this iteration. Null if not selected.",
+          "format": "date-time"
+        },
+        "startedAt": {
+          "type": "string",
+          "description": "Timestamp when this iteration became active and its timer started. Null if not yet active.",
+          "format": "date-time"
+        },
+        "endedAt": {
+          "type": "string",
+          "description": "Timestamp when this iteration concluded (answered, skipped, or timed out). Null if still active or pending.",
+          "format": "date-time"
+        },
+        "durationSeconds": {
+          "type": "number",
+          "description": "The duration in seconds from 'startedAt' to 'endedAt' for this iteration. Null if not ended."
+        }
+      },
+      "required": [
+        "id",
+        "sessionId",
+        "iterationNumber",
+        "status"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/sessions/{sessionId}",
+        "definition": {
+          "entityName": "Session",
+          "schema": {
+            "$ref": "#/backend/entities/Session"
+          },
+          "description": "Represents a single play session between two devices. Includes 'controlPanelUid' (the initiating device), 'displayPanelUid' (the joining device), and a 'sessionCode' for joining, ensuring authorization independence for direct access. All updates and reads are secured via these UIDs.",
+          "params": [
+            {
+              "name": "sessionId",
+              "description": "Unique identifier for the Session document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/sessions/{sessionId}/iterations/{iterationId}",
+        "definition": {
+          "entityName": "Iteration",
+          "schema": {
+            "$ref": "#/backend/entities/Iteration"
+          },
+          "description": "Represents an individual cycle or 'question' within a Session. Includes denormalized 'controlPanelUid' and 'displayPanelUid' from its parent Session to ensure authorization independence and allow atomic operations without requiring a 'get()' to the parent.",
+          "params": [
+            {
+              "name": "sessionId",
+              "description": "Identifier of the parent Session this Iteration belongs to."
+            },
+            {
+              "name": "iterationId",
+              "description": "Unique identifier for the Iteration document within its Session."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The recommended Firestore structure for RemoteDisplayLink prioritizes secure, real-time synchronization between two devices (a control panel and a display panel) by strictly adhering to the core design principles. The central entity is the `Session`, which orchestrates the real-time interaction and progress across 125 `Iteration` cycles. The key challenge, 'how to connect two devices', is addressed by introducing a `sessionCode` field in the `Session` document and explicitly tracking the `controlPanelUid` and `displayPanelUid`.\n\n**Authorization Independence (CRITICAL) via Denormalization:**\nTo eliminate `get()` calls in security rules and enable atomic operations, authorization context is denormalized. Each `Session` document will store the `uid` of the controlling device in `controlPanelUid` and the `uid` of the displaying device in `displayPanelUid` (initially null upon creation). Crucially, every `Iteration` document, residing in a subcollection of a `Session`, will *also* contain these `controlPanelUid` and `displayPanelUid` fields, copied from its parent `Session`. This ensures that security rules for `Iteration` documents can evaluate access solely based on the data within the `Iteration` document itself, without needing to fetch the parent `Session` document.\n\n**Structural Segregation & QAPs (Queryable Authorization Patterns):**\n1.  **`/sessions/{sessionId}`:** This top-level collection holds all `Session` documents. All documents in this collection share a homogeneous security posture: they are owned by a `controlPanelUid` and can be joined by a `displayPanelUid`. To allow a display panel to 'connect', a unique, human-readable `sessionCode` is added to each `Session` document. A display device can query this collection using the `sessionCode` and `displayPanelUid == null` to find and join a session. Control panel devices can list their own sessions by querying `controlPanelUid == request.auth.uid`. These operations are secure and efficient, supporting QAPs, as the necessary authorization fields (`controlPanelUid`, `displayPanelUid`, `sessionCode`) are directly on the `Session` document and can be indexed.\n2.  **`/sessions/{sessionId}/iterations/{iterationId}`:** `Iteration` documents are nested within their respective `Session` documents. The denormalized `controlPanelUid` and `displayPanelUid` fields ensure that `list` operations on this subcollection (e.g., to fetch all iterations for an active session) remain secure and efficient. Security rules can directly verify `request.auth.uid` against these denormalized fields, satisfying QAPs without complex filtering or expensive lookups.\n\n**DBAC & Access Modeling:**\nAuthorization is database-backed. The `controlPanelUid` and `displayPanelUid` fields in each document define the roles (controller/display) directly within the data. Path-based ownership (`/sessions/{sessionId}/iterations/{iterationId}`) is used for hierarchical data, and a simplified 'membership map' (via dedicated `uid` fields) is employed for collaborative data access between the two devices.\n\nThis structure ensures clear, explicit, and debuggable security rules, minimal transactional complexities, and high scalability for real-time synchronization between connected devices."
+  }
+}

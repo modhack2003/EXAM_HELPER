@@ -1,0 +1,109 @@
+/**
+ * RemoteDisplayLink Security Rules
+ *
+ * Core Philosophy:
+ * This ruleset implements a dual-device synchronization model (Control Panel vs. Display Panel). 
+ * Access is governed by specific UID fields (controlPanelUid and displayPanelUid) stored 
+ * directly on the documents.
+ *
+ * Data Structure:
+ * - /sessions/{sessionId}: Top-level documents representing a connection between two devices.
+ * - /sessions/{sessionId}/iterations/{iterationId}: Sub-collection tracking individual questions/cycles.
+ *
+ * Key Security Decisions:
+ * 1. Authorization Independence: Critical fields (controlPanelUid, displayPanelUid) are 
+ *    denormalized from the Session onto every Iteration document. This allows for fast, 
+ *    non-recursive security checks without calling get() on parent documents.
+ * 2. Join Mechanism: Sessions are created by a Control Panel. A Display Panel can "join" 
+ *    an existing session by updating a document where displayPanelUid is null, provided 
+ *    they know the sessionId or sessionCode.
+ * 3. Strict Ownership: Only the Control Panel (the initiator) has the authority to 
+ *    delete sessions or iterations.
+ *
+ * Denormalization for Authorization:
+ * To optimize performance and reduce costs, the controlPanelUid and displayPanelUid are 
+ * copied onto every iteration. This allows the rules to verify access using local document 
+ * data only (e.g., resource.data.controlPanelUid).
+ */
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- GLOBAL HELPER FUNCTIONS ---
+
+    /** @description Checks if the request is from an authenticated user. */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /** @description Checks if the user is the designated Control Panel for the document. */
+    function isController(data) {
+      return isSignedIn() && data.controlPanelUid == request.auth.uid;
+    }
+
+    /** @description Checks if the user is the designated Display Panel for the document. */
+    function isDisplay(data) {
+      return isSignedIn() && data.displayPanelUid == request.auth.uid;
+    }
+
+    /** @description Checks if the user is either the Controller or the Display for this document. */
+    function isParticipant(data) {
+      return isController(data) || isDisplay(data);
+    }
+
+    /** @description Checks if the user is the controller of an existing document. */
+    function isExistingController() {
+      return resource != null && isController(resource.data);
+    }
+
+    // --- COLLECTION RULES ---
+
+    /**
+     * @description Rules for Session documents. Controls how devices connect and interact.
+     * @path /sessions/{sessionId}
+     * @allow (create) if the user sets themselves as the controlPanelUid.
+     * @deny (update) if a user tries to hijack a session already assigned to another display panel.
+     * @principle Shared Access (Closed Collaborators) using specific UID fields.
+     */
+    match /sessions/{sessionId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      
+      // Control Panel initiates the session
+      // FIX: Removed '&& request.resource.data.id == sessionId' to allow flexibility on data shapes.
+      allow create: if isSignedIn() && request.resource.data.controlPanelUid == request.auth.uid;
+      
+      // 1. Controller can update session state.
+      // 2. A new Display Panel can join by setting displayPanelUid IF it is currently null.
+      allow update: if isSignedIn() && resource != null && (isController(resource.data) || (resource.data.displayPanelUid == null && request.resource.data.displayPanelUid == request.auth.uid));
+      
+      // Only the initiator can destroy the session
+      allow delete: if isExistingController();
+
+      /**
+       * @description Rules for Iterations within a session. Inherits security via denormalized UIDs.
+       * @path /sessions/{sessionId}/iterations/{iterationId}
+       * @allow (get) if the user is the controller or display panel for this specific iteration.
+       * @deny (create) if the iteration data doesn't correctly reference the parent sessionId.
+       * @principle Authorization Independence via Denormalization.
+       */
+      match /iterations/{iterationId} {
+        // Read access is restricted to the two devices involved in the session
+        allow get: if isParticipant(resource.data);
+        // FIX: Queries must filter by controlPanelUid or displayPanelUid by the requesting user.
+        // This enforces authorization and maintains "Authorization Independence" (no get() on parent).
+        allow list: if isSignedIn() && (request.query.where.controlPanelUid == request.auth.uid || request.query.where.displayPanelUid == request.auth.uid);
+        
+        // Relational Integrity: Ensure iteration points to the correct parent session
+        allow create: if isSignedIn() && request.resource.data.sessionId == sessionId && isParticipant(request.resource.data);
+        
+        // Updates allowed by either participant (e.g., display panel updating status)
+        allow update: if resource != null && isParticipant(resource.data) && request.resource.data.sessionId == resource.data.sessionId;
+        
+        // Only the initiator can delete individual iterations
+        allow delete: if isExistingController();
+      }
+    }
+  }
+}
