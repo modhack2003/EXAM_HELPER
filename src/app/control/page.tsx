@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useRemoteState } from '@/hooks/use-remote-state';
@@ -38,6 +37,7 @@ import { useUser, useAuth } from '@/firebase';
 import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
 import { toast } from '@/hooks/use-toast';
 import { QRCodeSVG } from 'qrcode.react';
+import { cn } from '@/lib/utils';
 
 function ControlPanelContent() {
   const searchParams = useSearchParams();
@@ -47,19 +47,16 @@ function ControlPanelContent() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
 
-  // Ensure user is signed in anonymously to interact with Firestore
   useEffect(() => {
     if (!isUserLoading && !user && auth) {
       initiateAnonymousSignIn(auth);
     }
   }, [user, isUserLoading, auth]);
 
-  // Generate a random session ID if none exists
   useEffect(() => {
     if (!sessionId) {
       const newId = Math.random().toString(36).substring(2, 9);
       setSessionId(newId);
-      // Update URL without refresh to allow sharing
       const url = new URL(window.location.href);
       url.searchParams.set('s', newId);
       window.history.replaceState({}, '', url.toString());
@@ -69,7 +66,6 @@ function ControlPanelContent() {
   const { state, updateState, resetState, initializeSession, isLoading, sessionExists } = useRemoteState(sessionId);
   const [localTimer, setLocalTimer] = useState<string>('00:00');
 
-  // Initialize session in Firestore if it doesn't exist yet
   useEffect(() => {
     if (!isLoading && !sessionExists && sessionId && user) {
       initializeSession();
@@ -139,7 +135,7 @@ function ControlPanelContent() {
     navigator.clipboard.writeText(displayUrl);
     toast({
       title: "Link Copied!",
-      description: "Paste this link into the display device's browser.",
+      description: "Paste this into the display device browser.",
     });
   };
 
@@ -147,172 +143,184 @@ function ControlPanelContent() {
 
   if (isLoading || isUserLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-10 h-10 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-8 flex flex-col max-w-lg mx-auto space-y-6">
-      <header className="flex items-center justify-between">
+    <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto page-transition">
+      {/* Fixed Header */}
+      <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md px-6 py-4 flex items-center justify-between border-b">
         <div>
-          <h1 className="text-xl font-bold text-primary font-headline">Controller</h1>
-          <p className="text-xs text-muted-foreground uppercase tracking-widest">Question {state.currentQuestionIndex + 1} / {TOTAL_QUESTIONS}</p>
+          <h1 className="text-lg font-bold text-primary flex items-center gap-2">
+            <Smartphone className="w-4 h-4" /> Controller
+          </h1>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Q{state.currentQuestionIndex + 1} of {TOTAL_QUESTIONS}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-1">
           <Dialog>
             <DialogTrigger asChild>
-              <Button variant="ghost" size="icon" title="Connect Display Device">
+              <Button variant="ghost" size="icon" className="h-9 w-9">
                 <Share2 className="w-4 h-4" />
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="w-[90vw] max-w-sm rounded-2xl">
               <DialogHeader>
-                <DialogTitle>Connect Display Panel</DialogTitle>
-                <DialogDescription>
-                  Scan the QR code or share the link with the display device.
-                </DialogDescription>
+                <DialogTitle>Connect Device</DialogTitle>
+                <DialogDescription>Scan to join the session</DialogDescription>
               </DialogHeader>
-              <div className="flex flex-col items-center justify-center space-y-6 py-4">
-                <div className="p-4 bg-white rounded-xl shadow-inner border">
-                  {displayUrl && (
-                    <QRCodeSVG 
-                      value={displayUrl} 
-                      size={200}
-                      level="H"
-                      includeMargin={false}
-                    />
-                  )}
+              <div className="flex flex-col items-center space-y-4 py-2">
+                <div className="p-4 bg-white rounded-2xl shadow-xl border">
+                  {displayUrl && <QRCodeSVG value={displayUrl} size={180} level="H" />}
                 </div>
                 <div className="w-full space-y-2">
-                  <div className="flex items-center gap-2 p-2 bg-muted rounded-md border text-xs font-mono break-all">
-                    <span className="flex-1 opacity-70 truncate">{displayUrl}</span>
+                  <div className="flex items-center gap-2 p-2 bg-muted rounded-lg border text-[10px] font-mono">
+                    <span className="flex-1 truncate opacity-70">{displayUrl}</span>
                     <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={copyShareLink}>
                       <Copy className="h-3 w-3" />
                     </Button>
                   </div>
-                  <Button variant="outline" className="w-full gap-2" asChild>
+                  <Button variant="outline" className="w-full h-11 text-sm gap-2" asChild>
                     <a href={displayUrl} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="h-4 w-4" /> Open Display Here
+                      <ExternalLink className="h-4 h-4" /> Open on this device
                     </a>
                   </Button>
                 </div>
               </div>
             </DialogContent>
           </Dialog>
-          <Button variant="ghost" size="icon" onClick={resetState} title="Reset All">
+          <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive" onClick={resetState}>
             <RefreshCcw className="w-4 h-4" />
           </Button>
         </div>
       </header>
 
-      <div className="space-y-2">
-        <div className="flex justify-between text-xs font-medium">
-          <span>Overall Progress</span>
-          <span>{Math.round(progress)}%</span>
-        </div>
-        <Progress value={progress} className="h-2" />
-        <div className="flex justify-between pt-1">
-            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                <CheckCircle className="w-3 h-3 text-green-500" /> {state.answeredIndices.length} Answered
+      {/* Main Content */}
+      <main className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+        {/* Progress Section */}
+        <section className="space-y-3">
+          <div className="flex justify-between items-end">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-tighter">Session Progress</span>
+            <span className="text-sm font-black text-primary">{Math.round(progress)}%</span>
+          </div>
+          <Progress value={progress} className="h-2.5 bg-secondary" />
+          <div className="flex justify-between">
+            <div className="flex items-center gap-1.5 px-2 py-1 bg-green-50 rounded-full border border-green-100">
+                <CheckCircle className="w-3 h-3 text-green-500" /> 
+                <span className="text-[10px] font-bold text-green-700">{state.answeredIndices.length} Answered</span>
             </div>
-            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                <CircleX className="w-3 h-3 text-orange-400" /> {state.skippedIndices.length} Skipped
+            <div className="flex items-center gap-1.5 px-2 py-1 bg-orange-50 rounded-full border border-orange-100">
+                <CircleX className="w-3 h-3 text-orange-400" /> 
+                <span className="text-[10px] font-bold text-orange-700">{state.skippedIndices.length} Skipped</span>
             </div>
-        </div>
-      </div>
+          </div>
+        </section>
 
-      <Card className="p-6 flex flex-col items-center justify-center space-y-4 shadow-md bg-white">
-        <div className="bg-primary/5 p-4 rounded-full">
-            <Clock className={`w-12 h-12 text-primary ${state.status === 'TIMER' ? 'animate-pulse' : ''}`} />
-        </div>
-        <div className="text-5xl font-mono font-bold tracking-tight text-foreground">
-          {state.status === 'TIMER' ? localTimer : '01:30'}
-        </div>
-        <Button 
-          onClick={handleStartTimer} 
-          className="w-full h-14 text-lg font-bold gap-2"
-          disabled={state.status === 'TIMER' || state.status === 'NEXT_PROMPT'}
-        >
-          <Play className="fill-current" /> Start Timer
-        </Button>
-      </Card>
+        {/* Timer Control */}
+        <Card className="p-6 flex flex-col items-center justify-center space-y-4 shadow-sm border-2 overflow-hidden relative group">
+          <div className={cn(
+            "absolute inset-0 bg-primary/5 transition-opacity",
+            state.status === 'TIMER' ? 'opacity-100' : 'opacity-0'
+          )} />
+          <div className="bg-primary/10 p-4 rounded-full relative z-10">
+              <Clock className={cn(
+                "w-10 h-10 text-primary transition-all",
+                state.status === 'TIMER' ? 'animate-pulse scale-110' : ''
+              )} />
+          </div>
+          <div className="text-5xl font-mono font-black tracking-tight text-foreground relative z-10">
+            {state.status === 'TIMER' ? localTimer : '01:30'}
+          </div>
+          <Button 
+            onClick={handleStartTimer} 
+            className="w-full h-14 text-lg font-black gap-2 rounded-xl relative z-10 shadow-lg active:scale-[0.98] transition-all"
+            disabled={state.status === 'TIMER' || state.status === 'NEXT_PROMPT'}
+          >
+            {state.status === 'TIMER' ? 'Timer Active' : <><Play className="fill-current w-5 h-5" /> Start Timer</>}
+          </Button>
+        </Card>
 
-      <div className="grid grid-cols-2 gap-4">
-        {(['A', 'B', 'C', 'D'] as const).map((opt) => (
-          <Button
-            key={opt}
-            onClick={() => handleSelectOption(opt)}
-            className={`h-24 text-3xl font-black rounded-xl shadow-lg transition-transform active:scale-95 option-${opt.toLowerCase()}`}
+        {/* Option Selection Grid */}
+        <div className="grid grid-cols-2 gap-4">
+          {(['A', 'B', 'C', 'D'] as const).map((opt) => (
+            <Button
+              key={opt}
+              onClick={() => handleSelectOption(opt)}
+              className={cn(
+                "h-20 text-3xl font-black rounded-2xl shadow-md transition-all active:scale-90",
+                `option-${opt.toLowerCase()}`,
+                state.selectedOption === opt ? "ring-4 ring-primary ring-offset-2" : "opacity-90 hover:opacity-100"
+              )}
+              disabled={state.status === 'NEXT_PROMPT'}
+            >
+              {opt}
+            </Button>
+          ))}
+        </div>
+
+        {/* Secondary Controls */}
+        <div className="grid grid-cols-2 gap-3 pt-2">
+          <Button 
+            variant="outline" 
+            onClick={handleSkip} 
+            className="h-14 text-sm font-bold gap-2 border-2 rounded-xl active:scale-95 transition-all"
             disabled={state.status === 'NEXT_PROMPT'}
           >
-            {opt}
+            <SkipForward className="w-4 h-4" /> Skip
           </Button>
-        ))}
-      </div>
+          <Button 
+            variant="default" 
+            onClick={moveToNextAvailable} 
+            className="h-14 text-sm font-bold bg-accent hover:bg-accent/90 gap-2 shadow-lg rounded-xl active:scale-95 transition-all"
+            disabled={state.status === 'NEXT_PROMPT'}
+          >
+            Next <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+      </main>
 
-      <div className="grid grid-cols-2 gap-4 pt-4">
-        <Button 
-          variant="outline" 
-          onClick={handleSkip} 
-          className="h-16 text-lg font-semibold gap-2 border-2"
-          disabled={state.status === 'NEXT_PROMPT'}
-        >
-          <SkipForward className="w-5 h-5" /> Skip
-        </Button>
-        <Button 
-          variant="default" 
-          onClick={moveToNextAvailable} 
-          className="h-16 text-lg font-semibold bg-accent hover:bg-accent/90 gap-2 shadow-md"
-          disabled={state.status === 'NEXT_PROMPT'}
-        >
-          Next Question <ChevronRight className="w-5 h-5" />
-        </Button>
-      </div>
-      
-      <div className="flex-1" />
-      
-      <Dialog>
-        <DialogTrigger asChild>
-          <Button variant="secondary" className="w-full gap-2 border">
-            <QrCode className="w-4 h-4" /> Show Connection QR
-          </Button>
-        </DialogTrigger>
-        <DialogContent>
-           <DialogHeader>
-                <DialogTitle>Display Connection</DialogTitle>
-                <DialogDescription>
-                  Scan this QR code with the display device (TV/Monitor/Laptop).
-                </DialogDescription>
-              </DialogHeader>
-              <div className="flex flex-col items-center justify-center py-6">
-                <div className="p-6 bg-white rounded-2xl shadow-xl border-4 border-primary/20">
-                   {displayUrl && (
-                    <QRCodeSVG 
-                      value={displayUrl} 
-                      size={250}
-                      level="H"
-                    />
-                  )}
+      {/* Footer Meta */}
+      <footer className="px-6 py-4 border-t bg-muted/30">
+        <div className="flex flex-col items-center gap-2">
+          <div className="flex items-center gap-1.5 text-[9px] font-bold text-muted-foreground uppercase tracking-[0.2em]">
+            <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+            Active Session: {sessionId}
+          </div>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="link" size="sm" className="h-auto p-0 text-[10px] uppercase font-black tracking-widest text-primary">
+                <QrCode className="w-3 h-3 mr-1" /> Re-scan QR
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="w-[90vw] max-w-sm rounded-2xl">
+              <div className="flex flex-col items-center justify-center py-6 space-y-6">
+                <div className="p-6 bg-white rounded-3xl shadow-2xl border-4 border-primary/20">
+                  {displayUrl && <QRCodeSVG value={displayUrl} size={240} level="H" />}
                 </div>
-                <p className="mt-6 text-sm font-bold text-center text-muted-foreground uppercase tracking-widest">
-                  Session ID: {sessionId}
+                <p className="text-xs font-black text-center text-muted-foreground uppercase tracking-[0.3em]">
+                  Scan to Connect Display
                 </p>
               </div>
-        </DialogContent>
-      </Dialog>
-      
-      <p className="text-center text-[10px] text-muted-foreground italic mt-2">
-        Sync Active (Firestore): Status {state.status} | Session: {sessionId}
-      </p>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </footer>
     </div>
   );
 }
 
+import { Smartphone } from 'lucide-react';
+
 export default function ControlPanel() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>}>
+    <Suspense fallback={
+      <div className="min-h-screen flex flex-col items-center justify-center space-y-4 bg-background">
+        <Loader2 className="w-10 h-10 animate-spin text-primary" />
+        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground animate-pulse">Initializing Controller...</p>
+      </div>
+    }>
       <ControlPanelContent />
     </Suspense>
   );

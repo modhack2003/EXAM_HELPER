@@ -4,26 +4,26 @@
 
 @layer base {
   :root {
-    --background: 207 43% 95%; /* #ECF2F7 */
-    --foreground: 213 32% 15%;
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 213 32% 15%;
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 213 32% 15%;
-    --primary: 212 59% 52%; /* #3D80CC */
+    --popover-foreground: 222 47% 11%;
+    --primary: 212 59% 52%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 90%;
-    --secondary-foreground: 212 59% 32%;
-    --muted: 210 40% 90%;
-    --muted-foreground: 215 16% 47%;
-    --accent: 244 84% 61%; /* #574AEF */
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222 47% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 244 84% 61%;
     --accent-foreground: 210 40% 98%;
-    --destructive: 0 84% 60%;
+    --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214 32% 85%;
-    --input: 214 32% 85%;
-    --ring: 212 59% 52%;
-    --radius: 0.75rem;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+    --radius: 1rem;
   }
 }
 
@@ -32,20 +32,51 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-body;
+    @apply bg-background text-foreground font-body overflow-x-hidden antialiased;
+    /* Support for mobile safe areas (notches) */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 }
 
-.option-a { background-color: #EF4444; }
-.option-b { background-color: #3B82F6; }
-.option-c { background-color: #10B981; }
-.option-d { background-color: #F59E0B; }
+/* Responsive button colors */
+.option-a { @apply bg-[#EF4444] hover:bg-[#DC2626] text-white; }
+.option-b { @apply bg-[#3B82F6] hover:bg-[#2563EB] text-white; }
+.option-c { @apply bg-[#10B981] hover:bg-[#059669] text-white; }
+.option-d { @apply bg-[#F59E0B] hover:bg-[#D97706] text-white; }
 
 .animate-pulse-slow {
   animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+.animate-bounce-slow {
+  animation: bounce 4s infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(-2%); }
+  50% { transform: translateY(0); }
+}
+
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.7; }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-muted-foreground/20 rounded-full;
+}
+
+/* App-like transitions */
+.page-transition {
+  @apply animate-in fade-in duration-500;
 }
