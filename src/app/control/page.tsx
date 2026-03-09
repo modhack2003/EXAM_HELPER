@@ -15,7 +15,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogDescription,
 } from '@/components/ui/dialog';
 import { 
   Play, 
@@ -30,9 +29,10 @@ import {
   Copy,
   ExternalLink,
   QrCode,
-  Smartphone
+  Smartphone,
+  Info
 } from 'lucide-react';
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, Suspense, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useUser, useAuth } from '@/firebase';
 import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
@@ -40,57 +40,48 @@ import { toast } from '@/hooks/use-toast';
 import { QRCodeSVG } from 'qrcode.react';
 import { cn } from '@/lib/utils';
 
-function ConnectDialogContent({ displayUrl, copyShareLink }: { displayUrl: string, copyShareLink: () => void }) {
+function ConnectionCard({ displayUrl, copyShareLink }: { displayUrl: string, copyShareLink: () => void }) {
   return (
-    <DialogContent className="sm:max-w-md border-none p-0 overflow-hidden rounded-[2.5rem] bg-white shadow-2xl">
-      <div className="bg-primary p-8 text-white text-center">
-        <div className="mx-auto bg-white/20 p-4 rounded-2xl w-fit mb-4">
-          <Smartphone className="w-8 h-8" />
+    <Card className="p-6 border-2 border-primary/20 bg-primary/5 rounded-[2rem] space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="p-2 bg-primary rounded-xl">
+            <QrCode className="w-4 h-4 text-white" />
+          </div>
+          <h2 className="text-sm font-black uppercase tracking-tight text-primary">Connect Display</h2>
         </div>
-        <DialogTitle className="text-2xl font-black uppercase tracking-tight mb-1">Connect Display</DialogTitle>
-        <p className="text-primary-foreground/80 font-bold uppercase text-[10px] tracking-widest">
-          Sync your audience screen
-        </p>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-8 w-8 rounded-lg text-primary hover:bg-primary/10"
+          onClick={copyShareLink}
+        >
+          <Copy className="h-4 w-4" />
+        </Button>
       </div>
-      
-      <div className="p-8 flex flex-col items-center gap-8 bg-white">
-        <div className="p-4 bg-white rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.1)] border-2 border-primary/5">
+
+      <div className="flex gap-4 items-center">
+        <div className="bg-white p-2 rounded-2xl shadow-sm border-2 border-primary/10 shrink-0">
           {displayUrl ? (
-            <QRCodeSVG value={displayUrl} size={220} level="H" marginSize={2} />
+            <QRCodeSVG value={displayUrl} size={100} level="H" marginSize={1} />
           ) : (
-            <div className="w-[220px] h-[220px] flex items-center justify-center">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <div className="w-[100px] h-[100px] flex items-center justify-center">
+              <Loader2 className="w-5 h-5 animate-spin text-primary" />
             </div>
           )}
         </div>
-
-        <div className="w-full space-y-4">
-          <div className="flex flex-col gap-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-primary/60 ml-1">Direct URL</label>
-            <div className="flex items-center gap-3 p-4 bg-muted rounded-2xl border-2 border-transparent focus-within:border-primary/20 transition-all">
-              <span className="flex-1 truncate text-xs font-bold text-foreground">
-                {displayUrl || "Generating..."}
-              </span>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-10 w-10 shrink-0 hover:bg-primary/10 hover:text-primary rounded-xl" 
-                onClick={copyShareLink}
-                disabled={!displayUrl}
-              >
-                <Copy className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          <Button variant="default" className="w-full h-16 text-sm font-black gap-3 rounded-2xl shadow-xl shadow-primary/10 transition-all" asChild disabled={!displayUrl}>
+        <div className="flex-1 space-y-3">
+          <p className="text-[10px] font-bold text-muted-foreground uppercase leading-tight">
+            Scan this with your audience screen device to sync
+          </p>
+          <Button variant="default" size="sm" className="w-full h-10 text-[10px] font-black uppercase tracking-widest gap-2 rounded-xl" asChild>
             <a href={displayUrl} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="h-4 w-4" /> Open on this device
+              <ExternalLink className="h-3 w-3" /> Preview Panel
             </a>
           </Button>
         </div>
       </div>
-    </DialogContent>
+    </Card>
   );
 }
 
@@ -184,14 +175,17 @@ function ControlPanelContent() {
     }, NEXT_PROMPT_DURATION_MS);
   };
 
-  const displayUrl = (typeof window !== 'undefined' && sessionId) ? `${window.location.origin}/display?s=${sessionId}` : '';
+  const displayUrl = useMemo(() => {
+    if (typeof window === 'undefined' || !sessionId) return '';
+    return `${window.location.origin}/display?s=${sessionId}`;
+  }, [sessionId]);
 
   const copyShareLink = () => {
     if (!displayUrl) return;
     navigator.clipboard.writeText(displayUrl);
     toast({
       title: "Link Copied!",
-      description: "Paste this into the display device browser.",
+      description: "Direct display URL copied to clipboard.",
     });
   };
 
@@ -216,14 +210,9 @@ function ControlPanelContent() {
           <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Q{state.currentQuestionIndex + 1} of {TOTAL_QUESTIONS}</p>
         </div>
         <div className="flex gap-2">
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-primary/5 text-primary">
-                <Share2 className="w-5 h-5" />
-              </Button>
-            </DialogTrigger>
-            <ConnectDialogContent displayUrl={displayUrl} copyShareLink={copyShareLink} />
-          </Dialog>
+          <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-primary/5 text-primary" onClick={copyShareLink}>
+            <Share2 className="w-5 h-5" />
+          </Button>
           <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-destructive/5 text-destructive" onClick={resetState}>
             <RefreshCcw className="w-5 h-5" />
           </Button>
@@ -231,7 +220,10 @@ function ControlPanelContent() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+      <main className="flex-1 overflow-y-auto px-6 py-6 space-y-8">
+        {/* Connection Setup (High Visibility) */}
+        <ConnectionCard displayUrl={displayUrl} copyShareLink={copyShareLink} />
+
         {/* Progress Section */}
         <section className="space-y-3">
           <div className="flex justify-between items-end">
@@ -252,7 +244,7 @@ function ControlPanelContent() {
         </section>
 
         {/* Timer Control */}
-        <Card className="p-8 flex flex-col items-center justify-center space-y-5 shadow-xl border-2 rounded-3xl overflow-hidden relative group transition-all active:scale-[0.98]">
+        <Card className="p-8 flex flex-col items-center justify-center space-y-5 shadow-xl border-2 rounded-[2.5rem] overflow-hidden relative group transition-all active:scale-[0.98]">
           <div className={cn(
             "absolute inset-0 bg-primary/5 transition-opacity",
             state.status === 'TIMER' ? 'opacity-100' : 'opacity-0'
@@ -315,21 +307,14 @@ function ControlPanelContent() {
       </main>
 
       {/* Footer Meta */}
-      <footer className="px-6 py-6 border-t bg-muted/20">
-        <div className="flex flex-col items-center gap-3">
-          <div className="flex items-center gap-2 text-[9px] font-black text-primary uppercase tracking-[0.3em] bg-primary/10 px-3 py-1 rounded-full">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-            Session: {sessionId}
-          </div>
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="h-12 px-8 rounded-2xl text-xs uppercase font-black tracking-widest border-2 bg-white shadow-lg text-primary border-primary/20 hover:bg-primary/5">
-                <QrCode className="w-4 h-4 mr-2" /> Show QR Code
-              </Button>
-            </DialogTrigger>
-            <ConnectDialogContent displayUrl={displayUrl} copyShareLink={copyShareLink} />
-          </Dialog>
+      <footer className="px-6 py-8 border-t bg-muted/20 flex flex-col items-center gap-4">
+        <div className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-[0.2em] bg-white border px-4 py-2 rounded-full shadow-sm">
+          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+          ID: {sessionId}
         </div>
+        <p className="text-[9px] text-muted-foreground uppercase tracking-widest text-center font-bold px-6 leading-relaxed">
+          Open the Preview Panel on a separate screen for your audience to see real-time updates.
+        </p>
       </footer>
     </div>
   );
@@ -340,12 +325,7 @@ export default function ControlPanel() {
     <Suspense fallback={
       <div className="min-h-screen flex flex-col items-center justify-center space-y-6 bg-background p-12">
         <Loader2 className="w-12 h-12 animate-spin text-primary" />
-        <div className="text-center space-y-2">
-          <p className="text-xs font-black uppercase tracking-[0.4em] text-muted-foreground animate-pulse">Syncing Services</p>
-          <div className="w-32 h-1.5 bg-secondary rounded-full overflow-hidden">
-            <div className="w-1/2 h-full bg-primary animate-progress" />
-          </div>
-        </div>
+        <p className="text-xs font-black uppercase tracking-[0.4em] text-muted-foreground animate-pulse">Syncing Services</p>
       </div>
     }>
       <ControlPanelContent />
