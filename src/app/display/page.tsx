@@ -1,7 +1,8 @@
 "use client";
 
 import { useRemoteState } from '@/hooks/use-remote-state';
-import { useEffect, useState, Suspense } from 'react';
+import { useWakeLock } from '@/hooks/use-wake-lock';
+import { useEffect, useState, Suspense, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { 
     Clock, 
@@ -11,7 +12,8 @@ import {
     Loader2,
     WifiOff,
     Monitor,
-    ChevronRight
+    ChevronRight,
+    Maximize2
 } from 'lucide-react';
 import { useUser, useAuth } from '@/firebase';
 import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
@@ -28,6 +30,19 @@ function DisplayPanelContent() {
   
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
+
+  // Keep screen on during display usage
+  useWakeLock(!!sessionId);
+
+  const toggleFullScreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  }, []);
   
   const [manualId, setManualId] = useState('');
 
@@ -94,7 +109,7 @@ function DisplayPanelContent() {
                 className="h-12 sm:h-14 text-lg font-black tracking-widest rounded-xl text-center uppercase border-2 focus:border-primary"
               />
             </div>
-            <Button type="submit" className="w-full h-12 sm:h-14 rounded-xl font-black uppercase tracking-widest text-xs sm:text-sm gap-2">
+            <Button type="submit" className="w-full h-12 sm:h-14 rounded-xl font-black uppercase tracking-widest text-xs sm:text-sm gap-2 shadow-lg">
               Connect Display <ChevronRight className="w-4 h-4" />
             </Button>
           </form>
@@ -139,8 +154,8 @@ function DisplayPanelContent() {
                 <Clock className="w-32 h-32 sm:w-56 sm:h-56 text-primary relative z-10 drop-shadow-2xl" />
             </div>
             <div className="space-y-4 sm:space-y-6 z-10">
-              <h2 className="text-7xl sm:text-9xl md:text-[10rem] font-black tracking-tighter text-foreground leading-none">01:30</h2>
-              <p className="text-xl sm:text-4xl font-bold text-muted-foreground uppercase tracking-[0.2em] sm:tracking-[0.4em]">Ready: Q{state.currentQuestionIndex + 1}</p>
+              <h2 className="text-7xl sm:text-9xl md:text-[15rem] font-black tracking-tighter text-foreground leading-none">01:30</h2>
+              <p className="text-xl sm:text-4xl md:text-5xl font-bold text-muted-foreground uppercase tracking-[0.2em] sm:tracking-[0.4em]">Ready: Q{state.currentQuestionIndex + 1}</p>
             </div>
           </div>
         );
@@ -153,11 +168,11 @@ function DisplayPanelContent() {
                 <Clock className="w-24 h-24 sm:w-48 sm:h-48 text-primary relative z-10 animate-bounce-slow" />
             </div>
             <div className="text-center space-y-4 z-10">
-              <h2 className="text-8xl sm:text-[12rem] md:text-[18rem] font-black tracking-tighter text-foreground tabular-nums leading-none drop-shadow-xl">
+              <h2 className="text-8xl sm:text-[12rem] md:text-[20rem] font-black tracking-tighter text-foreground tabular-nums leading-none drop-shadow-xl">
                 {localTimer}
               </h2>
-              <div className="px-6 sm:px-12 py-3 sm:py-4 bg-accent/10 rounded-full border border-accent/20 backdrop-blur-sm animate-pulse">
-                <p className="text-lg sm:text-5xl font-black text-accent uppercase tracking-[0.3em] sm:tracking-[0.5em]">Time is Ticking!</p>
+              <div className="px-6 sm:px-12 py-3 sm:py-6 bg-accent/10 rounded-full border border-accent/20 backdrop-blur-sm animate-pulse">
+                <p className="text-lg sm:text-5xl md:text-6xl font-black text-accent uppercase tracking-[0.3em] sm:tracking-[0.5em]">Time is Ticking!</p>
               </div>
             </div>
           </div>
@@ -202,10 +217,10 @@ function DisplayPanelContent() {
 
   return (
     <main className="fixed inset-0 bg-background overflow-hidden select-none touch-none">
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-accent to-primary animate-pulse" />
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-accent to-primary animate-pulse z-50" />
         
-        <div className="absolute top-6 sm:top-12 left-6 sm:left-12 flex items-center gap-3 sm:gap-4 opacity-40">
-            <div className="p-2 sm:p-3 bg-muted rounded-xl sm:rounded-2xl">
+        <div className="absolute top-6 sm:top-12 left-6 sm:left-12 flex items-center gap-3 sm:gap-4 opacity-40 z-20">
+            <div className="p-2 sm:p-3 bg-muted rounded-xl sm:rounded-2xl shadow-sm">
                 <MonitorCheck className="w-4 h-4 sm:w-8 sm:h-8" />
             </div>
             <div className="flex flex-col">
@@ -214,8 +229,11 @@ function DisplayPanelContent() {
             </div>
         </div>
         
-        <div className="absolute top-6 sm:top-12 right-6 sm:right-12 flex items-center gap-3 sm:gap-6 opacity-60">
-            <div className="flex flex-col items-end">
+        <div className="absolute top-6 sm:top-12 right-6 sm:right-12 flex items-center gap-2 z-20">
+            <Button variant="ghost" size="icon" onClick={toggleFullScreen} className="h-8 w-8 sm:h-12 sm:w-12 rounded-xl bg-muted/20 opacity-40 hover:opacity-100">
+                <Maximize2 className="w-4 h-4 sm:w-6 sm:h-6" />
+            </Button>
+            <div className="flex flex-col items-end opacity-60 ml-2">
                 <span className="text-[8px] sm:text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Round</span>
                 <span className="text-2xl sm:text-5xl font-black text-primary">{state.currentQuestionIndex + 1}<span className="text-xs sm:text-2xl text-muted-foreground opacity-50 font-bold ml-1">/ {TOTAL_QUESTIONS}</span></span>
             </div>
@@ -225,8 +243,8 @@ function DisplayPanelContent() {
             {renderContent()}
         </div>
         
-        <div className="absolute bottom-6 sm:bottom-12 left-0 right-0 flex justify-center opacity-30">
-            <div className="flex items-center gap-2 px-4 py-1.5 sm:py-2 bg-muted/50 rounded-full border backdrop-blur-sm">
+        <div className="absolute bottom-6 sm:bottom-12 left-0 right-0 flex justify-center opacity-30 z-20">
+            <div className="flex items-center gap-2 px-4 py-1.5 sm:py-3 bg-muted/50 rounded-full border backdrop-blur-sm shadow-inner">
                 <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 rounded-full animate-pulse" />
                 <p className="text-[7px] sm:text-[10px] font-black uppercase tracking-[0.5em] sm:tracking-[0.8em] translate-x-[0.2em] sm:translate-x-[0.4em]">Protocol Active</p>
             </div>

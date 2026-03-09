@@ -1,6 +1,7 @@
 "use client";
 
 import { useRemoteState } from '@/hooks/use-remote-state';
+import { useWakeLock } from '@/hooks/use-wake-lock';
 import { 
   TOTAL_QUESTIONS, 
   TIMER_DURATION_MS, 
@@ -9,13 +10,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { 
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 import { 
   Play, 
   SkipForward, 
@@ -31,9 +25,10 @@ import {
   ExternalLink,
   QrCode,
   Smartphone,
-  Home
+  Home,
+  Maximize2
 } from 'lucide-react';
-import { useEffect, useState, Suspense, useMemo } from 'react';
+import { useEffect, useState, Suspense, useMemo, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useUser, useAuth } from '@/firebase';
 import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
@@ -43,7 +38,7 @@ import { cn } from '@/lib/utils';
 
 function ConnectionCard({ displayUrl, copyShareLink, sessionId }: { displayUrl: string, copyShareLink: () => void, sessionId: string | null }) {
   return (
-    <Card className="p-4 sm:p-6 border-2 border-primary/20 bg-primary/5 rounded-[2rem] space-y-4">
+    <Card className="p-4 sm:p-6 border-2 border-primary/20 bg-primary/5 rounded-[2rem] space-y-4 shadow-inner">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="p-2 bg-primary rounded-xl">
@@ -62,7 +57,7 @@ function ConnectionCard({ displayUrl, copyShareLink, sessionId }: { displayUrl: 
       </div>
 
       <div className="flex gap-4 items-center">
-        <div className="bg-white p-2 rounded-2xl shadow-sm border-2 border-primary/10 shrink-0">
+        <div className="bg-white p-2 rounded-2xl shadow-md border-2 border-primary/10 shrink-0">
           {sessionId && displayUrl ? (
             <QRCodeSVG value={displayUrl} size={80} level="H" marginSize={1} className="sm:w-[100px] sm:h-[100px]" />
           ) : (
@@ -72,10 +67,10 @@ function ConnectionCard({ displayUrl, copyShareLink, sessionId }: { displayUrl: 
           )}
         </div>
         <div className="flex-1 space-y-2">
-          <p className="text-[9px] font-bold text-muted-foreground uppercase leading-tight">
-            Scan to sync audience screen
+          <p className="text-[10px] font-black text-foreground uppercase leading-tight tracking-tight">
+            Scan to sync screen
           </p>
-          <Button variant="default" size="sm" className="w-full h-9 text-[9px] font-black uppercase tracking-widest gap-2 rounded-xl" asChild disabled={!displayUrl}>
+          <Button variant="default" size="sm" className="w-full h-9 text-[10px] font-black uppercase tracking-widest gap-2 rounded-xl shadow-lg" asChild disabled={!displayUrl}>
             <a href={displayUrl} target="_blank" rel="noopener noreferrer">
               <ExternalLink className="h-3 w-3" /> Preview
             </a>
@@ -94,6 +89,19 @@ function ControlPanelContent() {
   
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
+
+  // Keep screen on during control panel usage
+  useWakeLock(!!sessionId);
+
+  const toggleFullScreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  }, []);
 
   useEffect(() => {
     if (!isUserLoading && !user && auth) {
@@ -219,9 +227,9 @@ function ControlPanelContent() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto page-transition pb-safe overflow-x-hidden">
-      <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md px-6 py-4 flex items-center justify-between border-b">
+      <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md px-6 py-4 flex items-center justify-between border-b safe-top">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-muted" onClick={handleExit}>
+          <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-muted shadow-sm" onClick={handleExit}>
             <Home className="w-5 h-5 text-muted-foreground" />
           </Button>
           <div>
@@ -232,8 +240,8 @@ function ControlPanelContent() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-primary/5 text-primary" onClick={copyShareLink}>
-            <Share2 className="w-5 h-5" />
+          <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-primary/5 text-primary" onClick={toggleFullScreen}>
+            <Maximize2 className="w-5 h-5" />
           </Button>
           <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-destructive/5 text-destructive" onClick={resetState}>
             <RefreshCcw className="w-5 h-5" />
@@ -330,12 +338,12 @@ function ControlPanelContent() {
         </div>
       </main>
 
-      <footer className="px-6 py-8 border-t bg-muted/20 flex flex-col items-center gap-4">
+      <footer className="px-6 py-8 border-t bg-muted/20 flex flex-col items-center gap-4 safe-bottom">
         <div className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-[0.2em] bg-white border px-4 py-2 rounded-full shadow-sm">
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
           ID: {sessionId}
         </div>
-        <p className="text-[9px] text-muted-foreground uppercase tracking-widest text-center font-bold px-6 leading-relaxed">
+        <p className="text-[9px] text-muted-foreground uppercase tracking-widest text-center font-bold px-6 leading-relaxed opacity-60">
           Sync with your audience screen for real-time updates.
         </p>
       </footer>
