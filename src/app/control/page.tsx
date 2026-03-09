@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useRemoteState } from '@/hooks/use-remote-state';
@@ -11,6 +10,14 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { 
   Play, 
   SkipForward, 
   ChevronRight, 
@@ -19,13 +26,17 @@ import {
   CheckCircle2,
   XCircle,
   Share2,
-  Loader2
+  Loader2,
+  Copy,
+  ExternalLink,
+  QrCode
 } from 'lucide-react';
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useUser, useAuth } from '@/firebase';
 import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
 import { toast } from '@/hooks/use-toast';
+import { QRCodeSVG } from 'qrcode.react';
 
 function ControlPanelContent() {
   const searchParams = useSearchParams();
@@ -121,12 +132,13 @@ function ControlPanelContent() {
     }, NEXT_PROMPT_DURATION_MS);
   };
 
+  const displayUrl = typeof window !== 'undefined' ? `${window.location.origin}/display?s=${sessionId}` : '';
+
   const copyShareLink = () => {
-    const displayUrl = `${window.location.origin}/display?s=${sessionId}`;
     navigator.clipboard.writeText(displayUrl);
     toast({
       title: "Link Copied!",
-      description: "Open this link on the display device.",
+      description: "Paste this link into the display device's browser.",
     });
   };
 
@@ -148,9 +160,46 @@ function ControlPanelContent() {
           <p className="text-xs text-muted-foreground uppercase tracking-widest">Question {state.currentQuestionIndex + 1} / {TOTAL_QUESTIONS}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="ghost" size="icon" onClick={copyShareLink} title="Share Display Link">
-            <Share2 className="w-4 h-4" />
-          </Button>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="icon" title="Connect Display Device">
+                <Share2 className="w-4 h-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Connect Display Panel</DialogTitle>
+                <DialogDescription>
+                  Scan the QR code or share the link with the display device.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col items-center justify-center space-y-6 py-4">
+                <div className="p-4 bg-white rounded-xl shadow-inner border">
+                  {displayUrl && (
+                    <QRCodeSVG 
+                      value={displayUrl} 
+                      size={200}
+                      level="H"
+                      includeMargin={false}
+                    />
+                  )}
+                </div>
+                <div className="w-full space-y-2">
+                  <div className="flex items-center gap-2 p-2 bg-muted rounded-md border text-xs font-mono break-all">
+                    <span className="flex-1 opacity-70 truncate">{displayUrl}</span>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={copyShareLink}>
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  <Button variant="outline" className="w-full gap-2" asChild>
+                    <a href={displayUrl} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="h-4 w-4" /> Open Display Here
+                    </a>
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
           <Button variant="ghost" size="icon" onClick={resetState} title="Reset All">
             <RefreshCcw className="w-4 h-4" />
           </Button>
@@ -223,7 +272,37 @@ function ControlPanelContent() {
       
       <div className="flex-1" />
       
-      <p className="text-center text-[10px] text-muted-foreground italic">
+      <Dialog>
+        <DialogTrigger asChild>
+          <Button variant="secondary" className="w-full gap-2 border">
+            <QrCode className="w-4 h-4" /> Show Connection QR
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+           <DialogHeader>
+                <DialogTitle>Display Connection</DialogTitle>
+                <DialogDescription>
+                  Scan this QR code with the display device (TV/Monitor/Laptop).
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col items-center justify-center py-6">
+                <div className="p-6 bg-white rounded-2xl shadow-xl border-4 border-primary/20">
+                   {displayUrl && (
+                    <QRCodeSVG 
+                      value={displayUrl} 
+                      size={250}
+                      level="H"
+                    />
+                  )}
+                </div>
+                <p className="mt-6 text-sm font-bold text-center text-muted-foreground uppercase tracking-widest">
+                  Session ID: {sessionId}
+                </p>
+              </div>
+        </DialogContent>
+      </Dialog>
+      
+      <p className="text-center text-[10px] text-muted-foreground italic mt-2">
         Sync Active (Firestore): Status {state.status} | Session: {sessionId}
       </p>
     </div>
